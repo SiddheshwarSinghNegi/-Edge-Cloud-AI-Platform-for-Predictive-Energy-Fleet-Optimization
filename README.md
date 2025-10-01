@@ -77,6 +77,3 @@ EdgeCloud-AI-Predictive-Platform/
   docs/             # Usage & API docs
   docker-compose.yaml
 ```
-
-## License
-MIT
