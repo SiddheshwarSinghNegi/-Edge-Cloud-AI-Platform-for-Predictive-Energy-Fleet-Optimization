@@ -1,0 +1,69 @@
+version: "3.9"
+services:
+  mqtt-broker:
+    image: eclipse-mosquitto:2
+    ports: ["1883:1883"]
+    volumes:
+      - ./backend/edge-simulator/mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+  ingest-api:
+    build: ./backend/ingest_api
+    ports: ["8081:8081"]
+    environment:
+      - S3_PATH=/data/raw
+      - DDB_PATH=/data/ddb.json
+      - FEATURE_URL=http://predict-api:8083/score
+    volumes:
+      - ./data:/data
+    depends_on: [mqtt-broker]
+
+  devices-api:
+    build: ./backend/devices_api
+    ports: ["8082:8082"]
+    environment:
+      - DDB_PATH=/data/ddb.json
+    volumes:
+      - ./data:/data
+
+  predict-api:
+    build: ./backend/predict_api
+    ports: ["8083:8083"]
+    environment:
+      - MODEL_DIR=/models
+      - DDB_PATH=/data/ddb.json
+    volumes:
+      - ./ml_models/export:/models
+      - ./data:/data
+
+  edge-simulator:
+    build: ./backend/edge-simulator
+    environment:
+      - MQTT_HOST=mqtt-broker
+      - MQTT_PORT=1883
+    depends_on: [mqtt-broker]
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports: ["9090:9090"]
+    volumes:
+      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    ports: ["3000:3000"]
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+    volumes:
+      - ./infrastructure/monitoring/grafana-provisioning:/etc/grafana/provisioning
+      - ./infrastructure/monitoring/dashboards:/var/lib/grafana/dashboards
+    depends_on: [prometheus]
+
+  frontend:
+    build: ./frontend
+    ports: ["5173:5173"]
+    environment:
+      - VITE_PRED_API=http://localhost:8083
+      - VITE_DEVICES_API=http://localhost:8082
+      - VITE_GRAFANA_URL=http://localhost:3000
+    depends_on: [grafana]

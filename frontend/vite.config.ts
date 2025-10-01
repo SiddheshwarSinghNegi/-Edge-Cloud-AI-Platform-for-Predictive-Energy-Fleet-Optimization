@@ -1,0 +1,1 @@
+import { defineConfig } from 'vite'; export default defineConfig({server:{host:true,port:5173,proxy:{'/api-pred':{target:'http://predict-api:8083',changeOrigin:true,rewrite:p=>p.replace(/^\/api-pred/,'')},'/api-dev':{target:'http://devices-api:8082',changeOrigin:true,rewrite:p=>p.replace(/^\/api-dev/,'')}}}});
